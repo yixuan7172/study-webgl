@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs =
+        'attribute vec4 a_pos;' +
+        'void main(){\n' +
+        'gl_Position = a_pos;\n' +
+        'gl_PointSize = 10.0;\n' +
+        '}'
+
+    let fs =
+        'void main(){\n' +
+        'gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n' +
+        '}'
+
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if (!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if (!gl) return
+        if (!initShaders(gl, vs, fs)) {
+            return
+        }
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        // gl.vertexAttrib4f(a_pos, 0.0, 0.0, 0.0, 1.0)
+        let p = new Float32Array([0.5, 0.0, 0.0, 1.0])
+        gl.vertexAttrib4fv(a_pos, p)
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.POINTS, 0, 1)
+    }
+
+    main()
+</script>
