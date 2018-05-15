@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        uniform float u_cosB,u_sinB;
+        void main(){
+        gl_Position.x = a_pos.x * u_cosB - a_pos.y * u_sinB;
+        gl_Position.y = a_pos.x * u_sinB + a_pos.y * u_cosB;
+        gl_Position.z = a_pos.z;
+        gl_Position.w = 1.0;
+        }`
+    let fs = `
+        precision mediump float;
+        uniform vec4 u_FragColor;
+        void main(){
+        gl_FragColor = vec4(0.0,1.0,0.0,1.0);
+        }`
+    let angle = 56.0
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if (!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if (!gl) return
+        if (!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+
+        let radius = Math.PI * angle / 180
+        let cosB = Math.cos(radius)
+        let sinB = Math.sin(radius)
+        let u_cosB = gl.getUniformLocation(gl.program, 'u_cosB')
+        let u_sinB = gl.getUniformLocation(gl.program, 'u_sinB')
+        gl.uniform1f(u_cosB, cosB)
+        gl.uniform1f(u_sinB, sinB)
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.TRIANGLES, 0, n)
+    }
+
+    function initVertexBuffers(gl) {
+        let vertices = new Float32Array([
+            0.0, 0.5, -0.5,
+            -0.5, 0.5, -0.5
+        ])
+        let n = 3
+        let vertexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(a_pos)
+        return n
+    }
+
+    main()
+</script>
