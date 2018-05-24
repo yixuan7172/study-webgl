@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="./lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        uniform mat4 u_modelMatrix;
+        void main(){
+        gl_Position = u_modelMatrix * a_pos;
+        }`
+    let fs = `
+        precision mediump float;
+        uniform vec4 u_FragColor;
+        void main(){
+        gl_FragColor = vec4(0.0,1.0,0.0,1.0);
+        }`
+    let angle = 45.0
+    let g_last = +new Date()
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if (!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if (!gl) return
+        if (!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+        let modelMatrix = new Matrix4()
+        let angle = 60.0
+        let tx = .5
+        let currentAngle = 0.0
+        let u_modelMatrix = gl.getUniformLocation(gl.program, 'u_modelMatrix')
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+        function tick() {
+            currentAngle = animate(currentAngle)
+            draw(gl, n, currentAngle, modelMatrix, u_modelMatrix)
+            requestAnimationFrame(tick)
+        }
+
+        tick()
+    }
+
+    function initVertexBuffers(gl) {
+        let vertices = new Float32Array([
+            0.0, 0.5, -0.5,
+            -0.5, 0.5, -0.5
+        ])
+        let n = 3
+        let vertexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(a_pos)
+        return n
+    }
+
+    function draw(gl, n, currentAngle, modelMatrix, u_modelMatrix) {
+        modelMatrix.setRotate(currentAngle, 0, 0, 1)
+        gl.uniformMatrix4fv(u_modelMatrix, false, modelMatrix.elements)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.TRIANGLES, 0, n)
+    }
+
+    function animate(an) {
+        let now = +new Date()
+        let e = now - g_last
+        g_last = now
+        let newAngle = an + angle * e / 1000
+        return newAngle % 360
+    }
+
+    main()
+</script>
