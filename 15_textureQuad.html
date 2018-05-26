@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="./lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        attribute vec2 a_texCoord;
+        varying vec2 v_texCoord;
+        void main(){
+        gl_Position = a_pos;
+        v_texCoord = a_texCoord;
+        }`
+    let fs = `
+        precision mediump float;
+        uniform sampler2D u_sampler;
+        varying vec2 v_texCoord;
+        void main(){
+        gl_FragColor = texture2D(u_sampler,v_texCoord);
+        }`
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if(!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if(!gl) return
+        if(!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+        if(!initTextures(gl, n)) return
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    }
+
+    function initVertexBuffers(gl) {
+        let verticesTexCoords = new Float32Array([
+            //顶点坐标，纹理坐标
+            -0.5, 0.5, 0.0, 1.0,
+            -0.5, -0.5, 0.0, 0.0,
+            0.5, 0.5, 1.0, 1.0,
+            0.5, -0.5, 1.0, 0.0
+        ])
+        let n = 4
+        let fSize = verticesTexCoords.BYTES_PER_ELEMENT
+        let vertexTexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesTexCoords, gl.STATIC_DRAW)
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, fSize * 4, 0)
+        gl.enableVertexAttribArray(a_pos)
+
+        //分配纹理坐标
+        let colorBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesTexCoords, gl.STATIC_DRAW)
+        let a_texCoord = gl.getAttribLocation(gl.program, 'a_texCoord')
+        gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, fSize * 4, fSize * 2)
+        gl.enableVertexAttribArray(a_texCoord)
+        return n
+    }
+
+    function initTextures(gl, n) {
+        let texture = gl.createTexture()//创建纹理对象
+        let u_sampler = gl.getUniformLocation(gl.program, 'u_sampler')
+        let image = new Image()
+        image.onload = function() {
+            loadTexture(gl, n, texture, u_sampler, image)
+        }
+        image.src = './assets/9.jpg'
+        return true
+    }
+
+    function loadTexture(gl, n, texture, u_sampler, image) {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)//对纹理图像进行Y轴反转
+        gl.activeTexture(gl.TEXTURE0)//开启0号纹理单元
+        gl.bindTexture(gl.TEXTURE_2D, texture)//向target绑定纹理对象
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)//配置纹理参数
+        // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image)//配置纹理图像
+        gl.uniform1i(u_sampler, 0)//将0号纹理传递给着色器
+        gl.clear(gl.COLOR_BUFFER_BIT);   // Clear <canvas>
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, n)
+    }
+
+    main()
+</script>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="./lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        attribute vec4 a_color;
+        varying vec4 v_color;
+        void main(){
+        gl_Position = a_pos;
+        gl_PointSize = 20.0;
+        v_color = a_color;
+        }`
+    let fs = `
+        precision mediump float;
+        varying vec4 v_color;
+        uniform float u_width;
+        uniform float u_height;
+        void main(){
+        gl_FragColor = vec4(gl_FragCoord.x/u_width,gl_FragCoord.y/u_height,0.0,1.0);
+        }`
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if(!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if(!gl) return
+        if(!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, n)
+    }
+
+    function initVertexBuffers(gl) {
+        let verticesColors = new Float32Array([
+            0.0, 0.5, 1.0, 0.0, 0.0,
+            -0.5, -0.5, 0.0, 1.0, 0.0,
+            0.5, -0.5, 0.0, 0.0, 1.0
+        ])
+        let n = 3
+        let fSize = verticesColors.BYTES_PER_ELEMENT
+        let vertexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, fSize * 5, 0)
+        gl.enableVertexAttribArray(a_pos)
+
+        let colorBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+        let a_color = gl.getAttribLocation(gl.program, 'a_color')
+        gl.vertexAttribPointer(a_color, 3, gl.FLOAT, false, fSize * 5, fSize * 2)
+        gl.enableVertexAttribArray(a_color)
+        return n
+    }
+
+    main()
+</script>
