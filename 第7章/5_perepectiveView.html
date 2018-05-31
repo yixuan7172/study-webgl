@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="../lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        attribute vec4 a_color;
+        uniform mat4 u_projMatrix;
+        uniform mat4 u_viewMatrix;
+        varying vec4 v_color;
+        void main(){
+        gl_Position = u_projMatrix * u_viewMatrix * a_pos;
+        v_color = a_color;
+        }`
+    let fs = `
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        varying vec4 v_color;
+        void main(){
+        gl_FragColor = v_color;
+        }`
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if(!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if(!gl) return
+        if(!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+        let u_projMatrix = gl.getUniformLocation(gl.program, 'u_projMatrix')
+        let u_viewMatrix = gl.getUniformLocation(gl.program, 'u_viewMatrix')
+        let projMatrix = new Matrix4()
+        let viewMatrix = new Matrix4()
+        viewMatrix.setLookAt(0, 0, 5, 0, 0, -100, 0, 1, 0)
+        projMatrix.setPerspective(30, canvas.width / canvas.height, 1, 100)
+        gl.uniformMatrix4fv(u_projMatrix, false, projMatrix.elements)
+        gl.uniformMatrix4fv(u_viewMatrix, false, viewMatrix.elements)
+        gl.clearColor(0, 0, 0, 1)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.TRIANGLES, 0, n)
+    }
+
+    function initVertexBuffers(gl) {
+        let verticesColors = new Float32Array([
+            0.75, 1.0, -4.0, 0.4, 1.0, 0.4, // The back green one
+            0.25, -1.0, -4.0, 0.4, 1.0, 0.4,
+            1.25, -1.0, -4.0, 1.0, 0.4, 0.4,
+
+            0.75, 1.0, -2.0, 1.0, 1.0, 0.4, // The middle yellow one
+            0.25, -1.0, -2.0, 1.0, 1.0, 0.4,
+            1.25, -1.0, -2.0, 1.0, 0.4, 0.4,
+
+            0.75, 1.0, 0.0, 0.4, 0.4, 1.0,  // The front blue one
+            0.25, -1.0, 0.0, 0.4, 0.4, 1.0,
+            1.25, -1.0, 0.0, 1.0, 0.4, 0.4,
+
+            // Three triangles on the left side
+            -0.75, 1.0, -4.0, 0.4, 1.0, 0.4, // The back green one
+            -1.25, -1.0, -4.0, 0.4, 1.0, 0.4,
+            -0.25, -1.0, -4.0, 1.0, 0.4, 0.4,
+
+            -0.75, 1.0, -2.0, 1.0, 1.0, 0.4, // The middle yellow one
+            -1.25, -1.0, -2.0, 1.0, 1.0, 0.4,
+            -0.25, -1.0, -2.0, 1.0, 0.4, 0.4,
+
+            -0.75, 1.0, 0.0, 0.4, 0.4, 1.0,  // The front blue one
+            -1.25, -1.0, 0.0, 0.4, 0.4, 1.0,
+            -0.25, -1.0, 0.0, 1.0, 0.4, 0.4
+        ])
+        let n = 18
+        let fSize = verticesColors.BYTES_PER_ELEMENT
+        let vertexTexBuffer = gl.createBuffer()
+        if(!vertexTexBuffer) console.log('has not buffer!')
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 3, gl.FLOAT, false, fSize * 6, 0)
+        gl.enableVertexAttribArray(a_pos)
+
+        let a_color = gl.getAttribLocation(gl.program, 'a_color')
+        gl.vertexAttribPointer(a_color, 3, gl.FLOAT, false, fSize * 6, fSize * 3)
+        gl.enableVertexAttribArray(a_color)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return n
+    }
+
+    var near = 0, far = .5
+
+    function keyDown(e, gl, n, u_viewMatrix, viewMatrix) {
+        if(e.keyCode === 39) {
+            g_eyeX += 0.1
+        } else if(e.keyCode === 37) {
+            g_eyeX -= 0.1
+        }
+        draw(gl, n, u_viewMatrix, viewMatrix)
+    }
+
+    var g_eyeX = 0.2, g_eyeY = 0.25, g_eyeZ = 0.25
+
+    function draw(gl, n, u_viewMatrix, viewMatrix) {
+        viewMatrix.setLookAt(g_eyeX, g_eyeY, g_eyeZ, 0, 0, 0, 0, 1, 0)
+        gl.uniformMatrix4fv(u_viewMatrix, false, viewMatrix.elements)
+        gl.clearColor(0, 0, 0, 1)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.drawArrays(gl.TRIANGLES, 0, n)
+    }
+
+    main()
+</script>

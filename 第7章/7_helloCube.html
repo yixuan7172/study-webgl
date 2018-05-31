@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="../lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        attribute vec4 a_color;
+        uniform mat4 u_mvprojMatrix;
+        varying vec4 v_color;
+        void main(){
+        gl_Position = u_mvprojMatrix * a_pos;
+        v_color = a_color;
+        }`
+    let fs = `
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        varying vec4 v_color;
+        void main(){
+        gl_FragColor = v_color;
+        }`
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        if(!canvas) {
+            return
+        }
+        let gl = getWebGLContext(canvas)
+        if(!gl) return
+        if(!initShaders(gl, vs, fs)) {
+            return
+        }
+        let n = initVertexBuffers(gl)
+        let u_mvprojMatrix = gl.getUniformLocation(gl.program, 'u_mvprojMatrix')
+        let mvprojMatrix = new Matrix4()
+        mvprojMatrix.setPerspective(30, 1, 0.1, 100).lookAt(3, 3, 7, 0, 0, 0, 0, 1, 0)
+        gl.uniformMatrix4fv(u_mvprojMatrix, false, mvprojMatrix.elements)
+        gl.clearColor(0, 0, 0, 1)
+        gl.enable(gl.DEPTH_TEST)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0)
+    }
+
+    function initVertexBuffers(gl) {
+        let verticesColors = new Float32Array([
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0,  // v0 White
+            -1.0, 1.0, 1.0, 1.0, 0.0, 1.0,  // v1 Magenta
+            -1.0, -1.0, 1.0, 1.0, 0.0, 0.0,  // v2 Red
+            1.0, -1.0, 1.0, 1.0, 1.0, 0.0,  // v3 Yellow
+            1.0, -1.0, -1.0, 0.0, 1.0, 0.0,  // v4 Green
+            1.0, 1.0, -1.0, 0.0, 1.0, 1.0,  // v5 Cyan
+            -1.0, 1.0, -1.0, 0.0, 0.0, 1.0,  // v6 Blue
+            -1.0, -1.0, -1.0, 0.0, 0.0, 0.0   // v7 Black
+        ])
+        let indices = new Uint8Array([
+            0, 1, 2, 0, 2, 3,
+            0, 3, 4, 0, 4, 5,
+            0, 5, 6, 0, 6, 1,
+            1, 6, 7, 1, 7, 2,
+            7, 4, 3, 7, 3, 2,
+            4, 6, 5, 4, 7, 6
+        ])
+        let n = 9
+        let fSize = verticesColors.BYTES_PER_ELEMENT
+        let vertexTexBuffer = gl.createBuffer()
+        let indexBuffer = gl.createBuffer()
+        if(!vertexTexBuffer || !indexBuffer) console.log('has not buffer!')
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+        let a_pos = gl.getAttribLocation(gl.program, 'a_pos')
+        gl.vertexAttribPointer(a_pos, 3, gl.FLOAT, false, fSize * 6, 0)
+        gl.enableVertexAttribArray(a_pos)
+
+        let a_color = gl.getAttribLocation(gl.program, 'a_color')
+        gl.vertexAttribPointer(a_color, 3, gl.FLOAT, false, fSize * 6, fSize * 3)
+        gl.enableVertexAttribArray(a_color)
+
+        //将顶点索引数据写入缓冲区对象
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW)
+        return indices.length
+    }
+
+    main()
+</script>
