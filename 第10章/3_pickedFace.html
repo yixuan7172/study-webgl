@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="../lib/cuon-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas" width="950" height="950"></canvas>
+</body>
+</html>
+<script>
+    let vs = `
+        attribute vec4 a_pos;
+        attribute vec4 a_color;
+        attribute float a_face;//表面编号,不可用int类型
+
+        uniform mat4 u_mvpMatrix;
+        uniform int u_pickedFace;
+
+        varying vec4 v_color;
+
+        void main(){
+            gl_Position = u_mvpMatrix * a_pos;
+            int face = int(a_face);
+            vec3 color = (face == u_pickedFace) ? vec3(1.0) : a_color.rgb;
+            if(u_pickedFace == 0){
+                v_color = vec4(color, a_face/255.0);
+            }else{
+                v_color = vec4(color, a_color.a);
+            }
+        }
+    `
+    let fs = `
+        #ifdef GL_ES
+            precision mediump float;
+        #endif
+
+        varying vec4 v_color;
+
+        void main(){
+            gl_FragColor = v_color;
+        }
+    `
+
+    function main() {
+        let canvas = document.getElementById('canvas')
+        let gl = getWebGLContext(canvas)
+        if(!gl) throw new Error('has not gl')
+        initShaders(gl, vs, fs)
+        let n = initVertexBuffers(gl)
+        if(n < 0) throw new Error('not n')
+        gl.clearColor(0, 0, 0, 1)
+        gl.enable(gl.DEPTH_TEST)
+
+        let u_mvpMatrix = gl.getUniformLocation(gl.program, 'u_mvpMatrix')
+        let u_pickedFace = gl.getUniformLocation(gl.program, 'u_pickedFace')
+        if(!u_mvpMatrix || !u_pickedFace) throw new Error('has not u_mvpMatrix or u_pickedFace')
+
+        let vpMatrix = new Matrix4()
+        vpMatrix.setPerspective(45, canvas.width / canvas.height, 1, 100)
+        vpMatrix.lookAt(0.0, 0.0, 7.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+        gl.uniform1i(u_pickedFace, -1)
+
+        let currentAgnle = 0.0
+        canvas.onmousedown = function(e) {
+            let x = e.clientX, y = e.clientY
+            let rect = e.target.getBoundingClientRect()
+            if(!rect) throw new Error('has not rect')
+            let r1 = rect.left <= x && rect.right > x,
+                r2 = rect.top <= y && rect.bottom > y
+            if(r1 && r2) {
+                let x_inCanvas = x - rect.left,
+                    y_inCanvas = rect.bottom - y
+                let face = checkFace(gl, n, x_inCanvas, y_inCanvas, currentAgnle, u_pickedFace, vpMatrix, u_mvpMatrix)
+                console.log('face: ' + face)
+                gl.uniform1i(u_pickedFace, face)
+                draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix)
+            }
+        }
+
+        function tick() {
+            currentAgnle = animate(currentAgnle)
+            draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix)
+            requestAnimationFrame(tick)
+        }
+
+        tick()
+    }
+
+    function initVertexBuffers(gl) {
+        var vertices = new Float32Array([   // Vertex coordinates
+            1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0,    // v0-v1-v2-v3 front
+            1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0,    // v0-v3-v4-v5 right
+            1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0,    // v0-v5-v6-v1 up
+            -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0,    // v1-v6-v7-v2 left
+            -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0,    // v7-v4-v3-v2 down
+            1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0     // v4-v7-v6-v5 back
+        ]);
+
+        var colors = new Float32Array([   // Colors
+            0.32, 0.18, 0.56, 0.32, 0.18, 0.56, 0.32, 0.18, 0.56, 0.32, 0.18, 0.56, // v0-v1-v2-v3 front
+            0.5, 0.41, 0.69, 0.5, 0.41, 0.69, 0.5, 0.41, 0.69, 0.5, 0.41, 0.69,  // v0-v3-v4-v5 right
+            0.78, 0.69, 0.84, 0.78, 0.69, 0.84, 0.78, 0.69, 0.84, 0.78, 0.69, 0.84, // v0-v5-v6-v1 up
+            0.0, 0.32, 0.61, 0.0, 0.32, 0.61, 0.0, 0.32, 0.61, 0.0, 0.32, 0.61,  // v1-v6-v7-v2 left
+            0.27, 0.58, 0.82, 0.27, 0.58, 0.82, 0.27, 0.58, 0.82, 0.27, 0.58, 0.82, // v7-v4-v3-v2 down
+            0.73, 0.82, 0.93, 0.73, 0.82, 0.93, 0.73, 0.82, 0.93, 0.73, 0.82, 0.93 // v4-v7-v6-v5 back
+        ]);
+
+        var faces = new Uint8Array([   // Faces
+            1, 1, 1, 1,     // v0-v1-v2-v3 front
+            2, 2, 2, 2,     // v0-v3-v4-v5 right
+            3, 3, 3, 3,     // v0-v5-v6-v1 up
+            4, 4, 4, 4,     // v1-v6-v7-v2 left
+            5, 5, 5, 5,     // v7-v4-v3-v2 down
+            6, 6, 6, 6     // v4-v7-v6-v5 back
+        ]);
+
+        var indices = new Uint8Array([   // Indices of the vertices
+            0, 1, 2, 0, 2, 3,    // front
+            4, 5, 6, 4, 6, 7,    // right
+            8, 9, 10, 8, 10, 11,    // up
+            12, 13, 14, 12, 14, 15,    // left
+            16, 17, 18, 16, 18, 19,    // down
+            20, 21, 22, 20, 22, 23     // back
+        ]);
+        let indexBuffer = gl.createBuffer()
+        if(!indexBuffer) throw new Error('has none indexBuffer')
+
+        if(!initArrayBuffer(gl, vertices, gl.FLOAT, 3, 'a_pos')) return -1
+        if(!initArrayBuffer(gl, colors, gl.FLOAT, 3, 'a_color')) return -2
+        if(!initArrayBuffer(gl, faces, gl.UNSIGNED_BYTE, 1, 'a_face')) return -3
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW)
+
+        return indices.length
+    }
+
+    function initArrayBuffer(gl, data, type, num, a_attribute) {
+        let buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
+        let attr = gl.getAttribLocation(gl.program, a_attribute)
+        if(attr < 0) throw new Error('has none attr')
+        console.log('attr: ' + attr)
+        gl.vertexAttribPointer(attr, num, type, false, 0, 0)
+        gl.enableVertexAttribArray(attr)
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+        return true
+    }
+
+    function checkFace(gl, n, x_inCanvas, y_inCanvas, currentAgnle, u_pickedFace, vpMatrix, u_mvpMatrix) {
+        let pixels = new Uint8Array(4)
+        gl.uniform1i(u_pickedFace, 0)
+        draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix)
+        gl.readPixels(x_inCanvas, y_inCanvas, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        return pixels[3]
+    }
+
+    var g_mvpMatrix = new Matrix4()
+
+    function draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix) {
+        g_mvpMatrix.set(vpMatrix)
+        g_mvpMatrix.rotate(currentAgnle, 1, 0, 0)
+        g_mvpMatrix.rotate(currentAgnle, 0, 1, 0)
+        g_mvpMatrix.rotate(currentAgnle, 0, 0, 1)
+        gl.uniformMatrix4fv(u_mvpMatrix, false, g_mvpMatrix.elements)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        console.log('gl.UNSIGNED_BYTE:(类型number?) ' + gl.UNSIGNED_BYTE)
+        gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0)
+    }
+
+    var last = +new Date()
+    var ANGLE_STEP = 20.0
+
+    function animate(currentAgnle) {
+        let now = +new Date()
+        let subT = now - last
+        last = now
+        let newAngle = currentAgnle + ANGLE_STEP * subT / 1000
+        return newAngle % 360
+    }
+
+    main()
+</script>

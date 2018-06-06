@@ -51,7 +51,7 @@
         if(!gl) throw error('shit')
         if(!initShaders(gl, vs, fs)) throw error('fuck')
         let n = initVertexArray(gl)
-        if(n < 0) throw  error('bitch')
+        if(n < 0) throw new Error('bitch')
         gl.clearColor(0, 0, 0, 1)
         gl.enable(gl.DEPTH_TEST)
 
@@ -106,6 +106,10 @@
         draw(gl, n, currentAngle, vpMatrix, u_mvpMatrix)
         let pixels = new Uint8Array(4)
         gl.readPixels(xInCanvas, yInCanvas, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        console.log('p[0]:  ' + pixels[0])
+        console.log('p[1]:  ' + pixels[1])
+        console.log('p[2]:  ' + pixels[2])
+        console.log('p[3]:  ' + pixels[3])
         if(pixels[0] === 255) {
             picked = true
         }
