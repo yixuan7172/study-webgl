@@ -76,7 +76,6 @@
                 let x_inCanvas = x - rect.left,
                     y_inCanvas = rect.bottom - y
                 let face = checkFace(gl, n, x_inCanvas, y_inCanvas, currentAgnle, u_pickedFace, vpMatrix, u_mvpMatrix)
-                console.log('face: ' + face)
                 gl.uniform1i(u_pickedFace, face)
                 draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix)
             }
@@ -158,6 +157,7 @@
         gl.uniform1i(u_pickedFace, 0)
         draw(gl, n, currentAgnle, vpMatrix, u_mvpMatrix)
         gl.readPixels(x_inCanvas, y_inCanvas, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        console.log(pixels)
         return pixels[3]
     }
 
@@ -170,7 +170,6 @@
         g_mvpMatrix.rotate(currentAgnle, 0, 0, 1)
         gl.uniformMatrix4fv(u_mvpMatrix, false, g_mvpMatrix.elements)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        console.log('gl.UNSIGNED_BYTE:(类型number?) ' + gl.UNSIGNED_BYTE)
         gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0)
     }
 
