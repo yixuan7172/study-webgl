@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+</body>
+</html>
+
+<script id="vs" type="notjs">
+    attribute vec2 a_pos;
+    uniform vec2 u_resolution;
+    void main(){
+        vec2 zero2one = a_pos / u_resolution;
+        vec2 zero2Two = zero2one * 2.0;
+        vec2 clipSpace = zero2Two - 1.0;
+        gl_Position = vec4(clipSpace*vec2(1,-1),0.0,1.0);
+    }
+
+
+</script>
+<script id="fs" type="notjs">
+    precision mediump float;
+    uniform vec4 u_color;
+    void main(){
+        gl_FragColor = u_color;
+    }
+
+
+</script>
+<script>
+    let canvas = document.getElementById('canvas')
+    canvas.width = innerWidth
+    canvas.height = innerHeight
+    let gl = canvas.getContext('webgl')
+
+    gl.viewport(0, 0, canvas.width, canvas.height)
+    gl.clearColor(0, 0, 0, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    let vsSource = document.getElementById('vs').text
+    let fsSource = document.getElementById('fs').text
+    let vsShader = createShader(gl, gl.VERTEX_SHADER, vsSource)
+    let fsShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource)
+
+    let program = createProgram(gl, vsShader, fsShader)
+    gl.useProgram(program)
+
+    let positions = new Float32Array([
+        10, 20,
+        80, 20,
+        10, 30,
+        10, 30,
+        80, 20,
+        80, 30
+    ])
+
+    let a_pos = gl.getAttribLocation(program, 'a_pos')
+    let u_resolution = gl.getUniformLocation(program, 'u_resolution')
+    let u_color = gl.getUniformLocation(program, 'u_color')
+
+    let buffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    // gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
+
+    gl.enableVertexAttribArray(a_pos)
+    gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, 0, 0)
+    gl.uniform2f(u_resolution, gl.canvas.width, gl.canvas.height)
+
+    for (let i = 0; i < 50; ++i) {
+        setRectangle(gl, randomInt(300), randomInt(300), randomInt(300), randomInt(300))
+        gl.uniform4f(u_color, Math.random(), Math.random(), Math.random(), 1)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+    }
+
+
+
+
+    function createShader(gl, type, source) {
+        let shader = gl.createShader(type)
+        gl.shaderSource(shader, source)
+        gl.compileShader(shader)
+        let success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
+        if (success) return shader
+        console.log(gl.getShaderInfoLog(shader))
+        gl.deleteShader(shader)
+    }
+
+    function createProgram(gl, vsShader, fsShader) {
+        let program = gl.createProgram()
+        gl.attachShader(program, vsShader)
+        gl.attachShader(program, fsShader)
+        gl.linkProgram(program)
+        let success = gl.getProgramParameter(program, gl.LINK_STATUS)
+        if (success) return program
+        console.log(gl.getProgramInfoLog(program))
+        gl.deleteProgram(program)
+    }
+
+    function setRectangle(gl, x, y, width, height) {
+        let x1 = x,
+            x2 = x + width,
+            y1 = y,
+            y2 = y + height
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            x1, y1,
+            x2, y1,
+            x1, y2,
+            x1, y2,
+            x2, y1,
+            x2, y2,
+        ]), gl.STATIC_DRAW)
+    }
+
+    function randomInt(num) {
+        return ~~(Math.random() * num)
+    }
+</script>
