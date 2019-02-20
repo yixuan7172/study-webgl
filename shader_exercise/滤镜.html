@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html>
+<script src="webGLUtils.js"></script>
+<script>
+    let vs = `
+        attribute vec4 a_position;
+        attribute vec2 a_texCoord;
+        varying   vec2 v_texCoord;
+
+        void main(){
+            gl_Position = a_position;
+            v_texCoord  = a_texCoord;
+        }`
+
+    let fs = `
+    precision  mediump     float;
+    uniform    sampler2D   u_sampler;
+    uniform    float       u_speed;//速度
+    uniform    float       u_time;
+    uniform    float       u_offset;
+    varying    vec2        v_texCoord;
+
+    float random(vec2 st){
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.2333))) * 43758.5453123);
+    }
+    float randomRange(vec2 standard, float min, float max){
+        return min + random(standard) * (max - min);
+    }
+    void main(){
+        vec3     color      =  texture2D(u_sampler, v_texCoord).rgb;
+        //位移值缩放
+        float   maxOffset   =  u_offset /7.0;
+        //时间计算
+        float   cTime       =  floor(u_time * u_speed * 50.0);
+        //切割图片的最大位移值
+        float maxSplitOffset = u_offset / 2.0;
+        for(float i = 0.0; i < 5.0; i+=1.0){
+            //切割纵向坐标
+            float sliceY  =  random(vec2(cTime + u_offset, 1999.0 + float(i)));
+            //切割高度
+            float sliceH  =  random(vec2(cTime + u_offset, 9999.0 + float(i))) *.8;
+            //计算随机横向偏移值
+            float hOffset =  randomRange(vec2(cTime + u_offset, 9625.0 + float(i)), -maxOffset, maxOffset);
+            //计算最终坐标
+            vec2 splitOff =  v_texCoord;
+            splitOff.x    += hOffset;
+            splitOff      =  fract(splitOff);
+            //片段如果在切割区间，就偏移区内图像。
+            if (v_texCoord.y > sliceY && v_texCoord.y < fract(sliceY + sliceH)) {
+                color = texture2D(u_sampler, splitOff).rgb;
+            }
+        }
+        vec2    texOffset   =  vec2(randomRange(vec2(cTime + maxOffset, 9999.0), -maxOffset, maxOffset),
+                                    randomRange(vec2(cTime,             9999.0), -maxOffset, maxOffset));
+        vec2    uvOff       =  fract(v_texCoord + texOffset);
+        //rgb随机分离
+        float rand = random(vec2(cTime, 9999.0));
+        if(rand > 0.33){
+            color.r = texture2D(u_sampler, uvOff).r;
+        }else if(rand < 0.66){
+            color.g = texture2D(u_sampler, uvOff).g;
+        }else{
+            color.b = texture2D(u_sampler, uvOff).b;
+        }
+        gl_FragColor = vec4(color, 1.0);
+    }
+    `
+
+    let todayTime = new Date()
+    todayTime.setHours(0, 0, 0, 0)
+
+    let program = createProgram(vs, fs)
+
+    const imgSrc = './image.png'
+    let img = new Image()
+    img.onload = () => {
+        let sampler = getLocation(program, 'uniform', 'u_sampler')
+        initTexture(img, sampler)
+
+        loop()
+    }
+    img.src = imgSrc
+
+    let a_pos = getLocation(program, 'attribute', 'a_position'),
+        a_tex = getLocation(program, 'attribute', 'a_texCoord')
+    initVertexBuffer(a_pos, a_tex)
+
+    let u_time = getLocation(program, 'uniform', 'u_time'),
+        u_speed = getLocation(program, 'uniform', 'u_speed')
+    //计算时间差
+    let diffTime = (new Date().getTime() - todayTime.getTime()) / 1000
+    gl.uniform1f(u_time, diffTime)
+    gl.uniform1f(u_speed, .3)
+
+    let u_offset = getLocation(program, 'uniform', 'u_offset')
+    gl.uniform1f(u_offset, .3)
+
+    function loop() {
+        requestAnimationFrame(loop)
+        diffTime = (new Date().getTime() - todayTime.getTime()) /1000
+        gl.uniform1f(u_time, diffTime)
+        clear()
+        let indices = new Int16Array([
+            0, 1, 2,
+            1, 2, 3
+        ])
+        let buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW)
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
+    }
+</script>
